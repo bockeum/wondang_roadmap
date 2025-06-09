@@ -1,0 +1,105 @@
+<strong>원당고 길안내 서비스</strong>
+정문부터 중앙현관까지 음성과 함께 안내해드립니다.
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>인천원당고 길안내</title>
+  <style>
+    body { margin: 0; font-family: sans-serif; }
+    #map { width: 100%; height: 90vh; }
+    #status { padding: 10px; font-size: 1.2em; text-align: center; background: #f0f0f0; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div id="status">위치 정보를 요청 중입니다…</div>
+  <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0b2691921f9afbc1176ef90f961da3df&libraries=services"></script>
+
+
+  <script>
+    // 학교 위치 정보 (예시 좌표)
+    const gate = new kakao.maps.LatLng(37.5970216, 126.7047506);       // 인천원당고 정문
+    const entrance = new kakao.maps.LatLng(37.597500, 126.705200);    // 중앙현관 (예시)
+
+    let map, userMarker, gateMarker, entranceMarker, polyline;
+
+    function initMap() {
+      map = new kakao.maps.Map(document.getElementById("map"), {
+        center: gate,
+        level: 4
+      });
+
+      gateMarker = new kakao.maps.Marker({ map, position: gate, title: "정문" });
+      entranceMarker = new kakao.maps.Marker({ map, position: entrance, title: "중앙현관" });
+
+      polyline = new kakao.maps.Polyline({
+        path: [gate, entrance],
+        strokeWeight: 5,
+        strokeColor: "#FF0000",
+        strokeOpacity: 0.8
+      });
+      polyline.setMap(map);
+
+      if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(onPositionUpdate, onError, {
+          enableHighAccuracy: true, maximumAge: 0, timeout: 10000
+        });
+      } else {
+        alert("이 브라우저는 위치 정보를 지원하지 않습니다.");
+      }
+    }
+
+    function onPositionUpdate(pos) {
+      const latlng = new kakao.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
+
+      if (!userMarker) {
+        userMarker = new kakao.maps.Marker({
+          map,
+          position: latlng,
+          title: "현재 위치",
+          image: new kakao.maps.MarkerImage(
+            "https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png",
+            new kakao.maps.Size(24, 35)
+          )
+        });
+      } else {
+        userMarker.setPosition(latlng);
+      }
+
+      map.panTo(latlng);
+
+      const dist = distanceBetween(latlng, entrance);
+      const msg = `중앙현관까지 약 ${Math.round(dist)}미터 남았습니다.`;
+      document.getElementById("status").innerText = msg;
+      speak(msg);
+    }
+
+    function onError(err) {
+      console.error(err);
+      alert("위치 정보를 가져올 수 없습니다.");
+    }
+
+    function distanceBetween(a, b) {
+      const R = 6371000;
+      const dLat = (b.getLat() - a.getLat()) * Math.PI / 180;
+      const dLng = (b.getLng() - a.getLng()) * Math.PI / 180;
+      const lat1 = a.getLat() * Math.PI / 180;
+      const lat2 = b.getLat() * Math.PI / 180;
+      const hav = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLng/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(hav), Math.sqrt(1 - hav));
+    }
+
+    function speak(text) {
+      if (!("speechSynthesis" in window)) return;
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = "ko-KR";
+      speechSynthesis.cancel(); // 중복 방지
+      speechSynthesis.speak(utter);
+    }
+
+    window.onload = initMap;
+  </script>
+</body>
+</html>
